@@ -1,0 +1,27 @@
+<launch>
+<!-- Launch file for Livox MID-360 LiDAR - Jetson Nano Optimized -->
+
+  <arg name="rviz" default="false" />
+
+  <rosparam command="load" file="$(find fast_livo)/config/mid360_nano.yaml" />
+
+  <!-- taskset -c 1,2,3 绑定到非系统核心，避免与系统争抢 core0 -->
+  <node pkg="fast_livo" type="fastlivo_mapping" name="laserMapping"
+        output="screen" launch-prefix="taskset -c 1,2,3">
+    <rosparam file="$(find fast_livo)/config/camera_pinhole.yaml" />
+  </node>
+
+  <group if="$(arg rviz)">
+    <!-- nice 降低 rviz 优先级，保证主算法帧率 -->
+    <node launch-prefix="nice -n 15" pkg="rviz" type="rviz" name="rviz"
+          args="-d $(find fast_livo)/rviz_cfg/fast_livo2.rviz" />
+  </group>
+
+  <!-- MID-360 直接输出 raw 图像时无需 republish，如需压缩流取消注释 -->
+  <!--
+  <node pkg="image_transport" type="republish" name="republish"
+        args="compressed in:=/left_camera/image raw out:=/left_camera/image"
+        output="screen" respawn="true"/>
+  -->
+
+</launch>

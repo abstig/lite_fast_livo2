@@ -1,5 +1,5 @@
 common:
-  img_topic: "/camera/image_color"
+  img_topic: "/left_camera/image"
   lid_topic: "/livox/lidar"
   imu_topic: "/livox/imu"
   img_en: 1
@@ -20,25 +20,23 @@ time_offset:
   exposure_time_init: 0.0
 
 preprocess:
-  point_filter_num: 8      # 进一步加大过滤：极其粗糙但快
-  filter_size_surf: 0.8    # 叶子节点保持0.8或1.0
-  lidar_type: 1 # Livox Avia/Mid360
-  scan_line: 6
+  point_filter_num: 1
+  filter_size_surf: 0.1
+  lidar_type: 1 # Livox Avia LiDAR
+  scan_line: 4
   blind: 0.5
-  feature_extract_enabled: false
 
 vio:
-  max_iterations: 2        # VIO 极限两次迭代
-  outlier_threshold: 1000 
-  img_point_cov: 100 
-  patch_size: 4            # 光流追踪块进一步减小为4x4
-  patch_pyrimid_level: 2   # 图像金字塔只用2层
-  normal_en: false         # 关闭面片法向量估计（极其节省CPU）
+  max_iterations: 5
+  outlier_threshold: 1000 # 78 100 156 #100 200 500 700 infinite
+  img_point_cov: 100 # 100 1000
+  patch_size: 8
+  patch_pyrimid_level: 4
+  normal_en: true
   raycast_en: false
   inverse_composition_en: false
-  exposure_estimate_en: false
+  exposure_estimate_en: true
   inv_expo_cov: 0.1
-  grid_size: 40            # 网格进一步拉大，提取极少量的视觉特征
 
 imu:
   imu_en: true
@@ -47,18 +45,16 @@ imu:
   gyr_cov: 0.5 # 0.5
   b_acc_cov: 0.001 # 0.1
   b_gyr_cov: 0.001 # 0.1
-  gravity_est_en: false    # 关闭重力自适应估计
-  ba_bg_est_en: false      # 关闭零偏估计，降低状态量维度带来的协方差计算
 
 lio:
-  max_iterations: 3        # LIO 极限三次配准
+  max_iterations: 5
   dept_err: 0.02
   beam_err: 0.15
-  min_eigen_value: 0.015   
-  voxel_size: 1.0          # 体素建图拉大到1.0m
-  max_layer: 1             # iKd-Tree或VoxelMap的最大层级降到1
-  max_points_num: 30       # 体素内保留最大点数减小
-  layer_init_num: [3, 3, 3, 3, 3]
+  min_eigen_value: 0.005 # 0.005
+  voxel_size: 0.5
+  max_layer: 2
+  max_points_num: 50
+  layer_init_num: [5, 5, 5, 5, 5]
 
 local_map:
   map_sliding_en: false
@@ -70,7 +66,7 @@ uav:
   gravity_align_en: true
 
 publish:
-  dense_map_en: false
+  dense_map_en: true
   pub_effect_point_en: false
   pub_plane_en: false
   pub_scan_num: 1
@@ -82,6 +78,6 @@ evo:
 
 pcd_save:
   pcd_save_en: false
-  colmap_output_en: false  # 必须关闭以节省 IO 时间
-  filter_size_pcd: 0.5
+  colmap_output_en: true # need to set interval = -1
+  filter_size_pcd: 0.15
   interval: -1

@@ -1698,8 +1698,45 @@ void VIOManager::updateFrameState(StatesGroup state)
 
 void VIOManager::plotTrackedPoints()
 {
-  // Disable OpenCV GUI rendering in processing loop for arm CPU
-  return; 
+  int total_points = visual_submap->voxel_points.size();
+  if (total_points == 0) return;
+  // int inlier_count = 0;
+  // for (int i = 0; i < img_cp.rows / grid_size; i++)
+  // {
+  //   cv::line(img_cp, cv::Poaint2f(0, grid_size * i), cv::Point2f(img_cp.cols, grid_size * i), cv::Scalar(255, 255, 255), 1, CV_AA);
+  // }
+  // for (int i = 0; i < img_cp.cols / grid_size; i++)
+  // {
+  //   cv::line(img_cp, cv::Point2f(grid_size * i, 0), cv::Point2f(grid_size * i, img_cp.rows), cv::Scalar(255, 255, 255), 1, CV_AA);
+  // }
+  // for (int i = 0; i < img_cp.rows / grid_size; i++)
+  // {
+  //   cv::line(img_cp, cv::Point2f(0, grid_size * i), cv::Point2f(img_cp.cols, grid_size * i), cv::Scalar(255, 255, 255), 1, CV_AA);
+  // }
+  // for (int i = 0; i < img_cp.cols / grid_size; i++)
+  // {
+  //   cv::line(img_cp, cv::Point2f(grid_size * i, 0), cv::Point2f(grid_size * i, img_cp.rows), cv::Scalar(255, 255, 255), 1, CV_AA);
+  // }
+  for (int i = 0; i < total_points; i++)
+  {
+    VisualPoint *pt = visual_submap->voxel_points[i];
+    V2D pc(new_frame_->w2c(pt->pos_));
+
+    if (visual_submap->errors[i] <= visual_submap->propa_errors[i])
+    {
+      // inlier_count++;
+      cv::circle(img_cp, cv::Point2f(pc[0], pc[1]), 7, cv::Scalar(0, 255, 0), -1, 8); // Green Sparse Align tracked
+    }
+    else
+    {
+      cv::circle(img_cp, cv::Point2f(pc[0], pc[1]), 7, cv::Scalar(255, 0, 0), -1, 8); // Blue Sparse Align tracked
+    }
+  }
+  // std::string text = std::to_string(inlier_count) + " " + std::to_string(total_points);
+  // cv::Point2f origin;
+  // origin.x = img_cp.cols - 110;
+  // origin.y = 20;
+  // cv::putText(img_cp, text, origin, cv::FONT_HERSHEY_COMPLEX, 0.7, cv::Scalar(0, 255, 0), 2, 8, 0);
 }
 
 V3F VIOManager::getInterpolatedPixel(cv::Mat img, V2D pc)
@@ -1724,8 +1761,26 @@ V3F VIOManager::getInterpolatedPixel(cv::Mat img, V2D pc)
 
 void VIOManager::dumpDataForColmap()
 {
-  // Disable IO dump entirely on Jetson Nano 
-  return; 
+  static int cnt = 1;
+  std::ostringstream ss;
+  ss << std::setw(5) << std::setfill('0') << cnt;
+  std::string cnt_str = ss.str();
+  std::string image_path = std::string(ROOT_DIR) + "Log/Colmap/images/" + cnt_str + ".png";
+  
+  cv::Mat img_rgb_undistort;
+  pinhole_cam->undistortImage(img_rgb, img_rgb_undistort);
+  cv::imwrite(image_path, img_rgb_undistort);
+  
+  Eigen::Quaterniond q(new_frame_->T_f_w_.rotation_matrix());
+  Eigen::Vector3d t = new_frame_->T_f_w_.translation();
+  fout_colmap << cnt << " "
+            << std::fixed << std::setprecision(6)  // 保证浮点数精度为6位
+            << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << " "
+            << t.x() << " " << t.y() << " " << t.z() << " "
+            << 1 << " "  // CAMERA_ID (假设相机ID为1)
+            << cnt_str << ".png" << std::endl;
+  fout_colmap << "0.0 0.0 -1" << std::endl;
+  cnt++;
 }
 
 void VIOManager::processFrame(cv::Mat &img, vector<pointWithVar> &pg, const unordered_map<VOXEL_LOCATION, VoxelOctoTree *> &feat_map, double img_time)

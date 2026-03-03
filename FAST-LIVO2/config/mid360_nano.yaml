@@ -1,0 +1,111 @@
+# ============================================================
+# FAST-LIVO2 config for Livox MID-360 on Jetson Nano B01 4G
+# 策略：牺牲部分精度换取实时性，适合手持低速扫描场景
+# ============================================================
+
+common:
+  img_topic: "/left_camera/image"
+  lid_topic: "/livox/lidar"
+  imu_topic: "/livox/imu"
+  img_en: 1
+  lidar_en: 1
+  # MID-360 官方驱动时间戳已修正，无需修复
+  ros_driver_bug_fix: false
+
+extrin_calib:
+  # TODO: 替换为你实际标定的外参
+  extrinsic_T: [0.04165, 0.02326, -0.0284]
+  extrinsic_R: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  Rcl: [0.00610193,-0.999863,-0.0154172,
+        -0.00615449,0.0153796,-0.999863,
+        0.999962,0.00619598,-0.0060598]
+  Pcl: [0.0194384, 0.104689,-0.0251952]
+
+time_offset:
+  imu_time_offset: 0.0
+  img_time_offset: 0.1
+  exposure_time_init: 0.0
+
+preprocess:
+  # 增大滤波数，减少每帧点数 (Avia=1, 此处=3，约减少2/3点数)
+  point_filter_num: 3
+  # 增大体素，进一步减少地图点数
+  filter_size_surf: 0.2
+  # MID-360 lidar_type = 9
+  lidar_type: 9
+  scan_line: 4
+  # 手持场景盲区可适当放大，过滤身体遮挡
+  blind: 1.0
+
+vio:
+  # 减少迭代次数：5→3，单帧耗时降低约40%
+  max_iterations: 3
+  # 适当放宽外点阈值，减少剔除计算
+  outlier_threshold: 1500
+  img_point_cov: 150
+  # 缩小 patch，减少图像计算量
+  patch_size: 6
+  # 减少金字塔层级：4→2，显著降低图像处理耗时
+  patch_pyrimid_level: 2
+  normal_en: false          # 关闭法线估计，节省CPU
+  raycast_en: false
+  inverse_composition_en: false
+  exposure_estimate_en: true
+  inv_expo_cov: 0.1
+
+imu:
+  imu_en: true
+  # 减少IMU积分帧数，降低积分耗时
+  imu_int_frame: 20
+  # MID-360 内置IMU噪声略高，适当调大
+  acc_cov: 0.8
+  gyr_cov: 0.5
+  b_acc_cov: 0.0001
+  b_gyr_cov: 0.0001
+
+lio:
+  # 减少迭代：5→3
+  max_iterations: 3
+  dept_err: 0.05           # 放宽深度误差容忍
+  beam_err: 0.08           # 放宽光束误差容忍
+  min_eigen_value: 0.003   # 略微放宽特征阈值
+  # 增大体素：减少地图节点数，节省内存和查找时间
+  voxel_size: 0.8
+  # 减少层数：2→1，降低树遍历开销
+  max_layer: 1
+  max_points_num: 30       # 减少每个体素最大点数
+  layer_init_num: [5, 5, 5, 5, 5]
+
+local_map:
+  # 开启地图滑动窗口！Jetson Nano 4G内存有限，防止OOM
+  map_sliding_en: true
+  half_map_size: 50        # 手持场景范围有限，50m足够
+  sliding_thresh: 5
+
+uav:
+  imu_rate_odom: false
+  # 手持场景需要重力对齐
+  gravity_align_en: true
+
+publish:
+  # 关闭稠密地图发布，减少带宽和序列化开销
+  dense_map_en: false
+  pub_effect_point_en: false
+  pub_plane_en: false
+  pub_scan_num: 2          # 每2帧发布一次，降低发布频率
+  blind_rgb_points: 0.5
+
+evo:
+  seq_name: "handheld_mid360"
+  pose_output_en: false
+
+pcd_save:
+  pcd_save_en: false
+  type: 0
+  colmap_output_en: false
+  filter_size_pcd: 0.2
+  interval: -1
+
+image_save:
+  img_save_en: false
+  interval: 1
