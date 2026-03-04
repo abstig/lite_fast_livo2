@@ -1,0 +1,90 @@
+common:
+  img_topic: "/left_camera/image"
+  lid_topic: "/livox/lidar"
+  imu_topic: "/livox/imu"
+  img_en: 1
+  lidar_en: 1
+  ros_driver_bug_fix: false
+
+extrin_calib:
+  extrinsic_T: [0.04165, 0.02326, -0.0284]
+  extrinsic_R: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  Rcl: [0.00610193,-0.999863,-0.0154172,
+        -0.00615449,0.0153796,-0.999863,
+        0.999962,0.00619598,-0.0060598] 
+  Pcl: [0.0194384, 0.104689,-0.0251952]
+
+time_offset: 
+  imu_time_offset: 0.0
+  img_time_offset: 0.1
+  exposure_time_init: 0.0
+
+preprocess:
+  point_filter_num: 4        # 增大: 原1, 减少处理点数
+  filter_size_surf: 0.3      # 增大: 原0.1, 更激进降采样
+  lidar_type: 1
+  scan_line: 6
+  blind: 0.8
+
+vio:
+  max_iterations: 3          # 减少: 原5
+  outlier_threshold: 1000
+  img_point_cov: 100
+  patch_size: 4              # 减小: 原8, 减少patch计算量
+  patch_pyrimid_level: 2     # 减少: 原4, 减少金字塔层数
+  normal_en: false           # 关闭: 减少法向量计算开销
+  raycast_en: false          # 保持关闭
+  inverse_composition_en: false
+  exposure_estimate_en: false # 关闭: 减少状态维度
+  inv_expo_cov: 0.1
+  grid_size: 20              # 增大: 原默认值, 减少grid数量
+  grid_n_height: 8           # 减少: 原17
+
+imu:
+  imu_en: true
+  imu_int_frame: 10          # 减少: 原30, 加快IMU初始化
+  acc_cov: 0.5
+  gyr_cov: 0.3
+  b_acc_cov: 0.0001
+  b_gyr_cov: 0.0001
+
+lio:
+  max_iterations: 3          # 减少: 原5
+  dept_err: 0.02
+  beam_err: 0.05
+  min_eigen_value: 0.005     # 放宽: 原0.0025
+  voxel_size: 1.0            # 增大: 原0.5, 减少体素数量
+  max_layer: 1               # 减少: 原2
+  max_points_num: 20         # 减少: 原50
+  layer_init_num: [5, 5, 5, 5, 5]
+
+local_map:  
+  map_sliding_en: true       # 开启: 限制地图大小节省内存
+  half_map_size: 50          # 减小: 原100
+  sliding_thresh: 5          # 减小: 原8, 更频繁滑动
+
+uav:
+  imu_rate_odom: false
+  gravity_align_en: false
+
+publish:
+  dense_map_en: false        # 关闭: 原true, 减少发布数据量
+  pub_effect_point_en: false 
+  pub_plane_en: false
+  pub_scan_num: 3            # 增大: 原1, 降低发布频率
+  blind_rgb_points: 0.0
+
+evo:
+  seq_name: "scan"
+  pose_output_en: false
+
+pcd_save:
+  pcd_save_en: false
+  type: 0
+  colmap_output_en: false
+  filter_size_pcd: 0.3
+  interval: -1
+
+image_save:
+  img_save_en: false
+  interval: 1
