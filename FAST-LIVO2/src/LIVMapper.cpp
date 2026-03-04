@@ -293,8 +293,14 @@ void LIVMapper::handleVIO()
     
   std::cout << "[ VIO ] Raw feature num: " << pcl_w_wait_pub->points.size() << std::endl;
 
-  // 轻量化: 始终关闭debug绘图
-  vio_manager->plot_flag = false;
+  if (fabs((LidarMeasures.last_lio_update_time - _first_lidar_time) - plot_time) < (frame_cnt / 2 * 0.1)) 
+  {
+    vio_manager->plot_flag = true;
+  } 
+  else 
+  {
+    vio_manager->plot_flag = false;
+  }
 
   vio_manager->processFrame(LidarMeasures.measures.back().img, _pv_list, voxelmap_manager->voxel_map_, LidarMeasures.last_lio_update_time - _first_lidar_time);
 
@@ -306,15 +312,20 @@ void LIVMapper::handleVIO()
     state_update_flg = true;
   }
 
-  // 轻量化: 降低发布频率，每3帧发布一次彩色点云
-  static int vio_pub_count = 0;
-  vio_pub_count++;
-  if (vio_pub_count >= 3) 
-  {
-    publish_frame_world(pubLaserCloudFullRes, vio_manager);
-    publish_img_rgb(pubImage, vio_manager);
-    vio_pub_count = 0;
-  }
+  // int size_sub_map = vio_manager->visual_sub_map_cur.size();
+  // visual_sub_map->reserve(size_sub_map);
+  // for (int i = 0; i < size_sub_map; i++) 
+  // {
+  //   PointType temp_map;
+  //   temp_map.x = vio_manager->visual_sub_map_cur[i]->pos_[0];
+  //   temp_map.y = vio_manager->visual_sub_map_cur[i]->pos_[1];
+  //   temp_map.z = vio_manager->visual_sub_map_cur[i]->pos_[2];
+  //   temp_map.intensity = 0.;
+  //   visual_sub_map->push_back(temp_map);
+  // }
+
+  publish_frame_world(pubLaserCloudFullRes, vio_manager);
+  publish_img_rgb(pubImage, vio_manager);
 
   euler_cur = RotMtoEuler(_state.rot_end);
   fout_out << std::setw(20) << LidarMeasures.last_lio_update_time - _first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
@@ -343,15 +354,6 @@ void LIVMapper::handleLIO()
   double t_down = omp_get_wtime();
 
   feats_down_size = feats_down_body->points.size();
-
-  // 轻量化: 限制最大点数避免过载
-  const int max_feats = 1000;
-  if (feats_down_size > max_feats)
-  {
-    feats_down_body->points.resize(max_feats);
-    feats_down_size = max_feats;
-  }
-
   voxelmap_manager->feats_down_body_ = feats_down_body;
   transformLidar(_state.rot_end, _state.pos_end, feats_down_body, feats_down_world);
   voxelmap_manager->feats_down_world_ = feats_down_world;
@@ -430,8 +432,7 @@ void LIVMapper::handleLIO()
     voxelmap_manager->mapSliding();
   }
   
-  // 轻量化: 只用降采样点云发布，不用原始点云
-  PointCloudXYZI::Ptr laserCloudFullRes(feats_down_body);
+  PointCloudXYZI::Ptr laserCloudFullRes(dense_map_en ? feats_undistort : feats_down_body);
   int size = laserCloudFullRes->points.size();
   PointCloudXYZI::Ptr laserCloudWorld(new PointCloudXYZI(size, 1));
 
@@ -441,23 +442,38 @@ void LIVMapper::handleLIO()
   }
   *pcl_w_wait_pub = *laserCloudWorld;
 
-  // 轻量化: 降低LIO点云发布频率
-  static int lio_pub_count = 0;
-  lio_pub_count++;
-  if (lio_pub_count >= 2)
-  {
-    publish_frame_world(pubLaserCloudFullRes, vio_manager);
-    lio_pub_count = 0;
-  }
-  
+  publish_frame_world(pubLaserCloudFullRes, vio_manager);
+  if (pub_effect_point_en) publish_effect_world(pubLaserCloudEffect, voxelmap_manager->ptpl_list_);
+  if (voxelmap_manager->config_setting_.is_pub_plane_map_) voxelmap_manager->pubVoxelMap();
   publish_path(pubPath);
   publish_mavros(mavros_pose_publisher);
 
   frame_num++;
   aver_time_consu = aver_time_consu * (frame_num - 1) / frame_num + (t4 - t0) / frame_num;
 
+  // aver_time_icp = aver_time_icp * (frame_num - 1) / frame_num + (t2 - t1) / frame_num;
+  // aver_time_map_inre = aver_time_map_inre * (frame_num - 1) / frame_num + (t4 - t3) / frame_num;
+  // aver_time_solve = aver_time_solve * (frame_num - 1) / frame_num + (solve_time) / frame_num;
+  // aver_time_const_H_time = aver_time_const_H_time * (frame_num - 1) / frame_num + solve_const_H_time / frame_num;
+  // printf("[ mapping time ]: per scan: propagation %0.6f downsample: %0.6f match: %0.6f solve: %0.6f  ICP: %0.6f  map incre: %0.6f total: %0.6f \n"
+  //         "[ mapping time ]: average: icp: %0.6f construct H: %0.6f, total: %0.6f \n",
+  //         t_prop - t0, t1 - t_prop, match_time, solve_time, t3 - t1, t5 - t3, t5 - t0, aver_time_icp, aver_time_const_H_time, aver_time_consu);
+
+  // printf("\033[1;36m[ LIO mapping time ]: current scan: icp: %0.6f secs, map incre: %0.6f secs, total: %0.6f secs.\033[0m\n"
+  //         "\033[1;36m[ LIO mapping time ]: average: icp: %0.6f secs, map incre: %0.6f secs, total: %0.6f secs.\033[0m\n",
+  //         t2 - t1, t4 - t3, t4 - t0, aver_time_icp, aver_time_map_inre, aver_time_consu);
+  printf("\033[1;34m+-------------------------------------------------------------+\033[0m\n");
+  printf("\033[1;34m|                         LIO Mapping Time                    |\033[0m\n");
+  printf("\033[1;34m+-------------------------------------------------------------+\033[0m\n");
+  printf("\033[1;34m| %-29s | %-27s |\033[0m\n", "Algorithm Stage", "Time (secs)");
+  printf("\033[1;34m+-------------------------------------------------------------+\033[0m\n");
+  printf("\033[1;36m| %-29s | %-27f |\033[0m\n", "DownSample", t_down - t0);
+  printf("\033[1;36m| %-29s | %-27f |\033[0m\n", "ICP", t2 - t1);
+  printf("\033[1;36m| %-29s | %-27f |\033[0m\n", "updateVoxelMap", t4 - t3);
+  printf("\033[1;34m+-------------------------------------------------------------+\033[0m\n");
   printf("\033[1;36m| %-29s | %-27f |\033[0m\n", "Current Total Time", t4 - t0);
   printf("\033[1;36m| %-29s | %-27f |\033[0m\n", "Average Total Time", aver_time_consu);
+  printf("\033[1;34m+-------------------------------------------------------------+\033[0m\n");
 
   euler_cur = RotMtoEuler(_state.rot_end);
   fout_out << std::setw(20) << LidarMeasures.last_lio_update_time - _first_lidar_time << " " << euler_cur.transpose() * 57.3 << " "
@@ -1248,8 +1264,8 @@ void LIVMapper::publish_frame_world(const ros::Publisher &pubLaserCloudFullRes, 
     {
       Eigen::Quaterniond q(_state.rot_end);
       fout_lidar_pos << std::fixed << std::setprecision(6);
-      fout_lidar_pos <<  LidarMeasures.measures.back().lio_time << " " << _state.pos_end[0] << " " << _state.pos_end[1] << " " << _state.pos_end[2] << " " << q.w() << " " << q.x() << " " << q.y()
-          << " " << q.z() << " " << endl;
+      fout_lidar_pos <<  LidarMeasures.measures.back().lio_time << " " << _state.pos_end[0] << " " << _state.pos_end[1] << " " << _state.pos_end[2] << " " << q.x() << " " << q.y() << " " << q.z()
+          << " " << q.w() << " " << endl;
     }
   }
   if (img_save_en && LidarMeasures.lio_vio_flg == VIO)

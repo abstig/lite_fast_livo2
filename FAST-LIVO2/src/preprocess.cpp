@@ -97,8 +97,10 @@ void Preprocess::avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
   pl_surf.clear();
   pl_corn.clear();
   pl_full.clear();
+  double t1 = omp_get_wtime();
   int plsize = msg->point_num;
   printf("[ Preprocess ] Input point number: %d \n", plsize);
+  // printf("point_filter_num: %d\n", point_filter_num);
 
   pl_corn.reserve(plsize);
   pl_surf.reserve(plsize);
@@ -193,19 +195,6 @@ void Preprocess::avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
           }
         }
       }
-    }
-
-    // 轻量化: 对输出点云再次截断，避免点数过多
-    const size_t max_output_points = 2000;
-    if (pl_surf.points.size() > max_output_points)
-    {
-      // 均匀保留
-      int step = pl_surf.points.size() / max_output_points;
-      PointCloudXYZI pl_surf_tmp;
-      pl_surf_tmp.reserve(max_output_points);
-      for (size_t i = 0; i < pl_surf.points.size(); i += step)
-        pl_surf_tmp.push_back(pl_surf.points[i]);
-      pl_surf = pl_surf_tmp;
     }
   }
   printf("[ Preprocess ] Output point number: %zu \n", pl_surf.points.size());
