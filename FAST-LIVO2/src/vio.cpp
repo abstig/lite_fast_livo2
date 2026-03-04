@@ -1207,7 +1207,7 @@ void VIOManager::updateStateInverse(cv::Mat img, int level)
       const int u_ref_i = floorf(pc[0] / scale) * scale;
       const int v_ref_i = floorf(pc[1] / scale) * scale;
       const float subpix_u_ref = (u_ref - u_ref_i) / scale;
-      const float subpix_v_ref = (v_ref - u_ref_i) / scale;
+      const float subpix_v_ref = (v_ref - v_ref_i) / scale;
       const float w_ref_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
       const float w_ref_tr = subpix_u_ref * (1.0 - subpix_v_ref);
       const float w_ref_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
@@ -1338,7 +1338,7 @@ void VIOManager::updateState(cv::Mat img, int level)
       int u_ref_i = floorf(pc[0] / scale) * scale;
       int v_ref_i = floorf(pc[1] / scale) * scale;
       float subpix_u_ref = (u_ref - u_ref_i) / scale;
-      float subpix_v_ref = (u_ref - u_ref_i) / scale;
+      float subpix_v_ref = (v_ref - v_ref_i) / scale;
       float w_ref_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
       float w_ref_tr = subpix_u_ref * (1.0 - subpix_v_ref);
       float w_ref_bl = (1.0 - subpix_u_ref) * subpix_v_ref;
@@ -1502,7 +1502,7 @@ V3F VIOManager::getInterpolatedPixel(cv::Mat img, V2D pc)
   const int u_ref_i = floorf(pc[0]);
   const int v_ref_i = floorf(pc[1]);
   const float subpix_u_ref = (u_ref - u_ref_i);
-  const float subpix_v_ref = (v_ref - u_ref_i);
+  const float subpix_v_ref = (v_ref - v_ref_i);
   const float w_ref_tl = (1.0 - subpix_u_ref) * (1.0 - subpix_v_ref);
   const float w_ref_tr = subpix_u_ref * (1.0 - subpix_v_ref);
   const float w_ref_bl = (1.0 - subpix_u_ref) * subpix_v_ref;

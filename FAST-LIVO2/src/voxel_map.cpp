@@ -423,38 +423,18 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
       /*** get the normal vector of closest surface/corner ***/
 
       V3D point_world = state_propagat.rot_end * point_this + state_propagat.pos_end;
-      Eigen::Matrix<double, 1, 6> J_nq;
-      J_nq.block<1, 3>(0, 0) = point_world - ptpl_list_[i].center_;
-      J_nq.block<1, 3>(0, 3) = -ptpl_list_[i].normal_;
+      double sigma_l = ptpl.normal_.transpose() * ptpl.plane_var_.block<3,3>(0,0) * ptpl.normal_;
+      sigma_l += ptpl.normal_.transpose() * ptpl.body_cov_ * ptpl.normal_;
+      R_inv(i) = 1.0 / sigma_l;
 
-      M3D var;
-      // V3D normal_b = state_.rot_end.inverse() * ptpl_list_[i].normal_;
-      // V3D point_b = ptpl_list_[i].point_b_;
-      // double cos_theta = fabs(normal_b.dot(point_b) / point_b.norm());
-      // ptpl_list_[i].body_cov_ = ptpl_list_[i].body_cov_ * (1.0 / cos_theta) * (1.0 / cos_theta);
-
-      // point_w cov
-      // var = state_propagat.rot_end * extR_ * ptpl_list_[i].body_cov_ * (state_propagat.rot_end * extR_).transpose() +
-      //       state_propagat.cov.block<3, 3>(3, 3) + (-point_crossmat) * state_propagat.cov.block<3, 3>(0, 0) * (-point_crossmat).transpose();
-
-      // point_w cov (another_version)
-      // var = state_propagat.rot_end * extR_ * ptpl_list_[i].body_cov_ * (state_propagat.rot_end * extR_).transpose() +
-      //       state_propagat.cov.block<3, 3>(3, 3) - point_crossmat * state_propagat.cov.block<3, 3>(0, 0) * point_crossmat;
-
-      // point_body cov
-      var = state_propagat.rot_end * extR_ * ptpl_list_[i].body_cov_ * (state_propagat.rot_end * extR_).transpose();
-
-      double sigma_l = J_nq * ptpl_list_[i].plane_var_ * J_nq.transpose();
-
-      R_inv(i) = 1.0 / (0.001 + sigma_l + ptpl_list_[i].normal_.transpose() * var * ptpl_list_[i].normal_);
-      // R_inv(i) = 1.0 / (sigma_l + ptpl_list_[i].normal_.transpose() * var * ptpl_list_[i].normal_);
-
-      /*** calculate the Measuremnt Jacobian matrix H ***/
-      V3D A(point_crossmat * state_.rot_end.transpose() * ptpl_list_[i].normal_);
-      Hsub.row(i) << VEC_FROM_ARRAY(A), ptpl_list_[i].normal_[0], ptpl_list_[i].normal_[1], ptpl_list_[i].normal_[2];
-      Hsub_T_R_inv.col(i) << A[0] * R_inv(i), A[1] * R_inv(i), A[2] * R_inv(i), ptpl_list_[i].normal_[0] * R_inv(i),
-          ptpl_list_[i].normal_[1] * R_inv(i), ptpl_list_[i].normal_[2] * R_inv(i);
-      meas_vec(i) = -ptpl_list_[i].dis_to_plane_;
+      // Jacobian
+      MD(1,3) J_dR = ptpl.normal_.transpose() * (-point_crossmat);
+      MD(1,3) J_dt = ptpl.normal_.transpose();
+      Hsub.block<1,3>(i, 0) = J_dR;
+      Hsub.block<1,3>(i, 3) = J_dt;
+      Hsub_T_R_inv.block<3,1>(0, i) = J_dR.transpose() * R_inv(i);
+      Hsub_T_R_inv.block<3,1>(3, i) = J_dt.transpose() * R_inv(i);
+      meas_vec(i) = ptpl.dis_to_plane_;
     }
     EKF_stop_flg = false;
     flg_EKF_converged = false;
