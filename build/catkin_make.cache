@@ -1,0 +1,2 @@
+FAST-LIVO2:rpg_vikit/vikit_common:rpg_vikit/vikit_py:rpg_vikit/vikit_ros
+-DCMAKE_BUILD_TYPE=Release -DFASTLIVO_JETSON_NANO=ON -DCATKIN_DEVEL_PREFIX=/home/whj/lite_fast_livo2/devel -DCMAKE_INSTALL_PREFIX=/home/whj/lite_fast_livo2/install -G Unix Makefiles
